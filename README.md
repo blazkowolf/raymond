@@ -1,5 +1,11 @@
 # raymond
 
+<div align="center">
+  
+![image](https://github.com/blazkowolf/raymond/assets/9439488/c9c39d75-ac4f-4044-a988-ca14b1bc8a29)
+
+</div>
+
 "raymond" is a collection of Raycaster implementations across various
 programming languages, utilizing [raylib] for drawing graphics and listening to
 keyboard input. All implementations closely follow Lode's comprehensive
