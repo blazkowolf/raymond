@@ -1,13 +1,10 @@
 const std = @import("std");
 const rl = @import("raylib");
 
+const oom = @import("./misc.zig").oom;
+
 // const tex_width = 64;
 // const tex_height = 64;
-
-fn oom(err: std.mem.Allocator.Error) noreturn {
-    _ = err catch {};
-    @panic("Out of memory");
-}
 
 fn fromRGB(rgb: u24) rl.Color {
     return rl.Color{

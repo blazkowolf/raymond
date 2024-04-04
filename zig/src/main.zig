@@ -2,6 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 
 const tg = @import("./texgen.zig");
+const oom = @import("./misc.zig").oom;
 
 const screen_width = 640;
 const screen_height = 480;
@@ -46,12 +47,21 @@ pub fn main() anyerror!void {
     var pos = rl.Vector2.init(22, 11.5); // (X,Y) start position
     var dir = rl.Vector2.init(-1, 0); // Initial direction vector
     var camera_plane = rl.Vector2.init(0, 0.66); // 2D raycaster camera plane
-    // var camera = rl.Camera2D{
-    //     .zoom = 1,
-    // };
 
-    // var buffer = rl.loadRenderTexture(screen_width, screen_height);
-    // defer buffer.unload();
+    rl.initWindow(screen_width, screen_height, "raymond");
+    defer rl.closeWindow(); // Close window and OpenGL context
+
+    const buffer = rl.Image{
+        .data = @ptrCast(allocator.alloc(rl.Color, screen_width * screen_height) catch |err| oom(err)),
+        .width = @intCast(screen_width),
+        .height = @intCast(screen_height),
+        .format = .pixelformat_uncompressed_r8g8b8a8,
+        .mipmaps = 1,
+    }; // No need to free since using arena allocator
+
+    const screen_texture = rl.loadTextureFromImage(buffer);
+    defer screen_texture.unload();
+
     var texture = [8]rl.Image{
         tg.genImageDiagonalCross(allocator, tex_width, tex_height),
         tg.genImageSlopedGreyscale(allocator, tex_width, tex_height),
@@ -63,19 +73,56 @@ pub fn main() anyerror!void {
         tg.genImageFlatGrey(allocator, tex_width, tex_height),
     };
 
-    rl.initWindow(screen_width, screen_height, "raymond");
-    defer rl.closeWindow(); // Close window and OpenGL context
-
     rl.setTargetFPS(60);
 
     while (!rl.windowShouldClose()) {
-        rl.beginDrawing();
-        defer rl.endDrawing();
+        const frame_time = rl.getFrameTime();
+        const move_speed: f32 = frame_time * 5;
+        const rot_speed: f32 = frame_time * 3;
 
-        rl.clearBackground(rl.Color.black);
+        if (rl.isKeyDown(rl.KeyboardKey.key_w)) {
+            if (world_map[@intFromFloat(pos.x + dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
+                pos.x += dir.x * move_speed;
+            }
+            if (world_map[@intFromFloat(pos.x)][@intFromFloat(pos.y + dir.y * move_speed)] == 0) {
+                pos.y += dir.y * move_speed;
+            }
+        }
 
-        // camera.begin();
-        // defer camera.end();
+        if (rl.isKeyDown(rl.KeyboardKey.key_s)) {
+            if (world_map[@intFromFloat(pos.x - dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
+                pos.x -= dir.x * move_speed;
+            }
+            if (world_map[@intFromFloat(pos.x)][@intFromFloat(pos.y - dir.y * move_speed)] == 0) {
+                pos.y -= dir.y * move_speed;
+            }
+        }
+
+        if (rl.isKeyDown(rl.KeyboardKey.key_d)) {
+            const old_dir_x = dir.x;
+            dir.x = dir.x * @cos(-rot_speed) - dir.y * @sin(-rot_speed);
+            dir.y = old_dir_x * @sin(-rot_speed) + dir.y * @cos(-rot_speed);
+            const old_plane_x = camera_plane.x;
+            camera_plane.x = camera_plane.x * @cos(-rot_speed) - camera_plane.y * @sin(-rot_speed);
+            camera_plane.y = old_plane_x * @sin(-rot_speed) + camera_plane.y * @cos(-rot_speed);
+        }
+
+        if (rl.isKeyDown(rl.KeyboardKey.key_a)) {
+            const old_dir_x = dir.x;
+            dir.x = dir.x * @cos(rot_speed) - dir.y * @sin(rot_speed);
+            dir.y = old_dir_x * @sin(rot_speed) + dir.y * @cos(rot_speed);
+            const old_plane_x = camera_plane.x;
+            camera_plane.x = camera_plane.x * @cos(rot_speed) - camera_plane.y * @sin(rot_speed);
+            camera_plane.y = old_plane_x * @sin(rot_speed) + camera_plane.y * @cos(rot_speed);
+        }
+
+        // Clear out buffer with zero values
+        for (0..screen_width) |x| for (0..screen_height) |y| rl.imageDrawPixel(
+            @constCast(&buffer),
+            @intCast(x),
+            @intCast(y),
+            rl.Color.black,
+        );
 
         for (0..screen_width) |x| {
             const camera_x: f64 = 2 * @as(f64, @floatFromInt(x)) / @as(f64, @floatFromInt(screen_width)) - 1;
@@ -175,6 +222,7 @@ pub fn main() anyerror!void {
 
             var tex_pos: f32 = (@as(f32, @floatFromInt(draw_start)) - @as(f32, @floatFromInt(@divFloor(screen_height, 2))) + @as(f32, @floatFromInt(@divFloor(line_height, 2)))) * step;
 
+            // rl.clearBackground(rl.Color.black);
             for (@intCast(draw_start)..@intCast(draw_end)) |y| {
                 const tex_y: i32 = @as(i32, @intFromFloat(tex_pos)) & (tex_height - 1);
                 tex_pos += step;
@@ -182,54 +230,19 @@ pub fn main() anyerror!void {
                 if (side == 1) {
                     color = color.brightness(-0.5);
                 }
-                // rl.beginTextureMode(buffer);
-                rl.drawPixel(@intCast(x), @intCast(y), color);
-                // rl.endTextureMode();
+                rl.imageDrawPixel(@constCast(&buffer), @intCast(x), @intCast(y), color);
             }
         }
 
-        // rl.drawTexture(buffer.texture, 0, 0, rl.Color.white);
-        rl.drawFPS(screen_width - 100, 50);
-        // rl.endDrawing();
+        rl.updateTexture(screen_texture, buffer.data);
 
-        const frame_time = rl.getFrameTime();
-        const move_speed: f32 = frame_time * 5;
-        const rot_speed: f32 = frame_time * 3;
+        {
+            rl.beginDrawing();
+            defer rl.endDrawing();
 
-        if (rl.isKeyDown(rl.KeyboardKey.key_w)) {
-            if (world_map[@intFromFloat(pos.x + dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
-                pos.x += dir.x * move_speed;
-            }
-            if (world_map[@intFromFloat(pos.x)][@intFromFloat(pos.y + dir.y * move_speed)] == 0) {
-                pos.y += dir.y * move_speed;
-            }
-        }
-
-        if (rl.isKeyDown(rl.KeyboardKey.key_s)) {
-            if (world_map[@intFromFloat(pos.x - dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
-                pos.x -= dir.x * move_speed;
-            }
-            if (world_map[@intFromFloat(pos.x)][@intFromFloat(pos.y - dir.y * move_speed)] == 0) {
-                pos.y -= dir.y * move_speed;
-            }
-        }
-
-        if (rl.isKeyDown(rl.KeyboardKey.key_d)) {
-            const old_dir_x = dir.x;
-            dir.x = dir.x * @cos(-rot_speed) - dir.y * @sin(-rot_speed);
-            dir.y = old_dir_x * @sin(-rot_speed) + dir.y * @cos(-rot_speed);
-            const old_plane_x = camera_plane.x;
-            camera_plane.x = camera_plane.x * @cos(-rot_speed) - camera_plane.y * @sin(-rot_speed);
-            camera_plane.y = old_plane_x * @sin(-rot_speed) + camera_plane.y * @cos(-rot_speed);
-        }
-
-        if (rl.isKeyDown(rl.KeyboardKey.key_a)) {
-            const old_dir_x = dir.x;
-            dir.x = dir.x * @cos(rot_speed) - dir.y * @sin(rot_speed);
-            dir.y = old_dir_x * @sin(rot_speed) + dir.y * @cos(rot_speed);
-            const old_plane_x = camera_plane.x;
-            camera_plane.x = camera_plane.x * @cos(rot_speed) - camera_plane.y * @sin(rot_speed);
-            camera_plane.y = old_plane_x * @sin(rot_speed) + camera_plane.y * @cos(rot_speed);
+            rl.clearBackground(rl.Color.black);
+            rl.drawTexture(screen_texture, 0, 0, rl.Color.white);
+            rl.drawFPS(screen_width - 100, 50);
         }
     }
 }
