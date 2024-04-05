@@ -1,43 +1,53 @@
 const std = @import("std");
 const rl = @import("raylib");
+const rlm = @import("raylib-math");
 
 const tg = @import("./texgen.zig");
 const oom = @import("./misc.zig").oom;
 
-const window_width = 1280;
-const window_height = 960;
+const window_width = 1600;
+// const window_width = 1280;
+const window_height = 900;
+// const window_height = 720;
+// const screen_width = 640;
 const screen_width = 320;
-const screen_height = 240;
+// const screen_height = 360;
+const screen_height = 180;
 const tex_width = 64;
 const tex_height = 64;
 const map_width = 24;
 const map_height = 24;
 
 const world_map = [map_width][map_height]u32{
-    [_]u32{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 7, 7, 7, 7, 7, 7, 7, 7 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 7 },
-    [_]u32{ 4, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7 },
-    [_]u32{ 4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7 },
-    [_]u32{ 4, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 7 },
-    [_]u32{ 4, 0, 4, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 0, 7, 7, 7, 7, 7 },
-    [_]u32{ 4, 0, 5, 0, 0, 0, 0, 5, 0, 5, 0, 5, 0, 5, 0, 5, 7, 0, 0, 0, 7, 7, 7, 1 },
-    [_]u32{ 4, 0, 6, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 5, 7, 0, 0, 0, 0, 0, 0, 8 },
-    [_]u32{ 4, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 1 },
-    [_]u32{ 4, 0, 8, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 5, 7, 0, 0, 0, 0, 0, 0, 8 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 5, 7, 0, 0, 0, 7, 7, 7, 1 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 5, 5, 5, 5, 0, 5, 5, 5, 5, 7, 7, 7, 7, 7, 7, 7, 1 },
-    [_]u32{ 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
-    [_]u32{ 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4 },
-    [_]u32{ 6, 6, 6, 6, 6, 6, 0, 6, 6, 6, 6, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6 },
-    [_]u32{ 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 6, 0, 6, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 6, 0, 6, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 2, 0, 0, 5, 0, 0, 2, 0, 0, 0, 2 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 6, 0, 6, 2, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2 },
-    [_]u32{ 4, 0, 6, 0, 6, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 2 },
-    [_]u32{ 4, 0, 0, 5, 0, 0, 0, 0, 0, 4, 6, 0, 6, 2, 0, 0, 0, 0, 0, 2, 2, 0, 2, 2 },
-    [_]u32{ 4, 0, 6, 0, 6, 0, 0, 0, 0, 4, 6, 0, 6, 2, 0, 0, 5, 0, 0, 2, 0, 0, 0, 2 },
-    [_]u32{ 4, 0, 0, 0, 0, 0, 0, 0, 0, 4, 6, 0, 6, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 2 },
-    [_]u32{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3 },
+    [_]u32{ 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 4, 4, 6, 4, 4, 6, 4, 6, 4, 4, 4, 6, 4 },
+    [_]u32{ 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4 },
+    [_]u32{ 8, 0, 3, 3, 0, 0, 0, 0, 0, 8, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6 },
+    [_]u32{ 8, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6 },
+    [_]u32{ 8, 0, 3, 3, 0, 0, 0, 0, 0, 8, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4 },
+    [_]u32{ 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 4, 0, 0, 0, 0, 0, 6, 6, 6, 0, 6, 4, 6 },
+    [_]u32{ 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 8, 4, 4, 4, 4, 4, 4, 6, 0, 0, 0, 0, 0, 6 },
+    [_]u32{ 7, 7, 7, 7, 0, 7, 7, 7, 7, 0, 8, 0, 8, 0, 8, 0, 8, 4, 0, 4, 0, 6, 0, 6 },
+    [_]u32{ 7, 7, 0, 0, 0, 0, 0, 0, 7, 8, 0, 8, 0, 8, 0, 8, 8, 6, 0, 0, 0, 0, 0, 6 },
+    [_]u32{ 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 6, 0, 0, 0, 0, 0, 4 },
+    [_]u32{ 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 6, 0, 6, 0, 6, 0, 6 },
+    [_]u32{ 7, 7, 0, 0, 0, 0, 0, 0, 7, 8, 0, 8, 0, 8, 0, 8, 8, 6, 4, 6, 0, 6, 6, 6 },
+    [_]u32{ 7, 7, 7, 7, 0, 7, 7, 7, 7, 8, 8, 4, 0, 6, 8, 4, 8, 3, 3, 3, 0, 3, 3, 3 },
+    [_]u32{ 2, 2, 2, 2, 0, 2, 2, 2, 2, 4, 6, 4, 0, 0, 6, 0, 6, 3, 0, 0, 0, 0, 0, 3 },
+    [_]u32{ 2, 2, 0, 0, 0, 0, 0, 2, 2, 4, 0, 0, 0, 0, 0, 0, 4, 3, 0, 0, 0, 0, 0, 3 },
+    [_]u32{ 2, 0, 0, 0, 0, 0, 0, 0, 2, 4, 0, 0, 0, 0, 0, 0, 4, 3, 0, 0, 0, 0, 0, 3 },
+    [_]u32{ 1, 0, 0, 0, 0, 0, 0, 0, 1, 4, 4, 4, 4, 4, 6, 0, 6, 3, 3, 0, 0, 0, 3, 3 },
+    [_]u32{ 2, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 1, 2, 2, 2, 6, 6, 0, 0, 5, 0, 5, 0, 5 },
+    [_]u32{ 2, 2, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 2, 2, 0, 5, 0, 5, 0, 0, 0, 5, 5 },
+    [_]u32{ 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 5, 0, 5, 0, 5, 0, 5, 0, 5 },
+    [_]u32{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5 },
+    [_]u32{ 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 5, 0, 5, 0, 5, 0, 5, 0, 5 },
+    [_]u32{ 2, 2, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 2, 2, 0, 5, 0, 5, 0, 0, 0, 5, 5 },
+    [_]u32{ 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5 },
+};
+
+const Side = enum {
+    horizontal, // North/South
+    vertical, // East/West
 };
 
 pub fn main() anyerror!void {
@@ -53,6 +63,8 @@ pub fn main() anyerror!void {
     rl.initWindow(window_width, window_height, "raymond");
     defer rl.closeWindow(); // Close window and OpenGL context
 
+    rl.setWindowMonitor(rl.getCurrentMonitor());
+
     const buffer = rl.Image{
         .data = @ptrCast(allocator.alloc(rl.Color, screen_width * screen_height) catch |err| oom(err)),
         .width = @intCast(screen_width),
@@ -65,22 +77,22 @@ pub fn main() anyerror!void {
     defer screen_texture.unload();
 
     var texture = [8]rl.Image{
-        tg.genImageDiagonalCross(allocator, tex_width, tex_height),
-        tg.genImageSlopedGreyscale(allocator, tex_width, tex_height),
-        tg.genImageSlopedYellowGradient(allocator, tex_width, tex_height),
-        tg.genImageXorGreyscale(allocator, tex_width, tex_height),
-        tg.genImageXorGreen(allocator, tex_width, tex_height),
-        tg.genImageRedBricks(allocator, tex_width, tex_height),
-        tg.genImageRedGradient(allocator, tex_width, tex_height),
-        tg.genImageFlatGrey(allocator, tex_width, tex_height),
+        rl.loadImage("../pics/eagle.png"),
+        rl.loadImage("../pics/redbrick.png"),
+        rl.loadImage("../pics/purplestone.png"),
+        rl.loadImage("../pics/greystone.png"),
+        rl.loadImage("../pics/bluestone.png"),
+        rl.loadImage("../pics/mossy.png"),
+        rl.loadImage("../pics/wood.png"),
+        rl.loadImage("../pics/colorstone.png"),
     };
 
     rl.setTargetFPS(60);
 
     while (!rl.windowShouldClose()) {
-        const frame_time = rl.getFrameTime();
-        const move_speed: f32 = frame_time * 5;
-        const rot_speed: f32 = frame_time * 3;
+        const delta_time = rl.getFrameTime();
+        const move_speed: f32 = delta_time * 5;
+        const rot_speed: f32 = delta_time * 3;
 
         if (rl.isKeyDown(rl.KeyboardKey.key_w)) {
             if (world_map[@intFromFloat(pos.x + dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
@@ -101,50 +113,121 @@ pub fn main() anyerror!void {
         }
 
         if (rl.isKeyDown(rl.KeyboardKey.key_d)) {
-            const old_dir_x = dir.x;
-            dir.x = dir.x * @cos(-rot_speed) - dir.y * @sin(-rot_speed);
-            dir.y = old_dir_x * @sin(-rot_speed) + dir.y * @cos(-rot_speed);
-            const old_plane_x = camera_plane.x;
-            camera_plane.x = camera_plane.x * @cos(-rot_speed) - camera_plane.y * @sin(-rot_speed);
-            camera_plane.y = old_plane_x * @sin(-rot_speed) + camera_plane.y * @cos(-rot_speed);
+            dir = rlm.vector2Rotate(dir, -rot_speed);
+            camera_plane = rlm.vector2Rotate(camera_plane, -rot_speed);
         }
 
         if (rl.isKeyDown(rl.KeyboardKey.key_a)) {
-            const old_dir_x = dir.x;
-            dir.x = dir.x * @cos(rot_speed) - dir.y * @sin(rot_speed);
-            dir.y = old_dir_x * @sin(rot_speed) + dir.y * @cos(rot_speed);
-            const old_plane_x = camera_plane.x;
-            camera_plane.x = camera_plane.x * @cos(rot_speed) - camera_plane.y * @sin(rot_speed);
-            camera_plane.y = old_plane_x * @sin(rot_speed) + camera_plane.y * @cos(rot_speed);
+            dir = rlm.vector2Rotate(dir, rot_speed);
+            camera_plane = rlm.vector2Rotate(camera_plane, rot_speed);
         }
 
-        for (0..screen_width) |x| {
-            // Clear out buffer with zero values
-            rl.imageDrawLine(@constCast(&buffer), @intCast(x), 0, @intCast(x), screen_height, rl.Color.black);
+        rl.imageClearBackground(@constCast(&buffer), rl.Color.black);
 
-            const camera_x: f64 = 2 * @as(f64, @floatFromInt(x)) / @as(f64, @floatFromInt(screen_width)) - 1;
-            const ray_dir = rl.Vector2.init(
-                dir.x + camera_plane.x * @as(f32, @floatCast(camera_x)),
-                dir.y + camera_plane.y * @as(f32, @floatCast(camera_x)),
+        // Floor casting
+        for (0..screen_height) |y| {
+            // Ray direction for leftmost ray (x = 0) and rightmost ray (x = w)
+            const ray_dir_left = rlm.vector2Subtract(dir, camera_plane);
+            const ray_dir_right = rlm.vector2Add(dir, camera_plane);
+
+            // Current y-position compared to the center of the screen (the horizon)
+            const p: i32 = @as(i32, @intCast(y)) - @divFloor(screen_height, 2);
+
+            // Vertical position of the camera
+            const camera_pos_z: f32 = 0.5 * @as(
+                f32,
+                @floatFromInt(screen_height),
             );
 
-            var map_x = @as(i32, @intFromFloat(pos.x));
-            var map_y = @as(i32, @intFromFloat(pos.y));
+            // Horizontal distance from the camera to the floor for the current row.
+            // 0.5 is the z-position exactly in the middle between floor and ceiling.
+            const row_dist: f32 = camera_pos_z / @as(f32, @floatFromInt(p));
+
+            // Calculate the real word step vector we have to add for each x (parallel to the camera plane).
+            // Adding step-by-step avoids multiplications with a weight in the inner loop.
+            const ray_dir_delta = rlm.vector2Subtract(
+                ray_dir_right,
+                ray_dir_left,
+            );
+
+            const floor_step = rlm.vector2Divide(
+                rlm.vector2Scale(ray_dir_delta, row_dist),
+                rl.Vector2.init(
+                    @floatFromInt(screen_width),
+                    @floatFromInt(screen_width),
+                ),
+            );
+
+            // Real world coordinates of the leftmost column.
+            // This will be updated as we step to the right.
+            var floor = rlm.vector2Add(
+                pos,
+                rlm.vector2Scale(ray_dir_left, row_dist),
+            );
+
+            for (0..screen_width) |x| {
+                @setRuntimeSafety(false);
+                // The cell coordinate is simply gotten from the integer parts of floor.x and floor.y
+                const cell_x: i32 = @intFromFloat(floor.x);
+                const cell_y: i32 = @intFromFloat(floor.y);
+
+                // Get the texture coordinate from the fractional part
+                const tx: i32 = @as(i32, @intFromFloat(@as(f32, @floatFromInt(tex_width)) * (floor.x - @as(f32, @floatFromInt(cell_x))))) & (tex_width - 1);
+                const ty: i32 = @as(i32, @intFromFloat(@as(f32, @floatFromInt(tex_height)) * (floor.y - @as(f32, @floatFromInt(cell_y))))) & (tex_height - 1);
+
+                floor = rlm.vector2Add(floor, floor_step);
+
+                // Choose texture and draw the pixel
+                const floor_tex_id: u32 = 3;
+                const ceil_tex_id: u32 = 6;
+
+                var color: rl.Color = undefined;
+
+                // Floor
+                color = texture[floor_tex_id].getColor(tx, ty).brightness(-0.5);
+                rl.imageDrawPixel(
+                    @constCast(&buffer),
+                    @intCast(x),
+                    @intCast(y),
+                    color,
+                );
+
+                // Ceiling (symmetrical, at screen_height - y - 1 instead of y)
+                color = texture[ceil_tex_id].getColor(tx, ty).brightness(-0.5);
+                rl.imageDrawPixel(
+                    @constCast(&buffer),
+                    @intCast(x),
+                    @intCast(screen_height - y - 1),
+                    color,
+                );
+            }
+        }
+
+        // Wall casting
+        for (0..screen_width) |x| {
+            const camera_x: f32 = 2 * @as(f32, @floatFromInt(x)) / @as(f32, @floatFromInt(screen_width)) - 1;
+            const ray_dir = rlm.vector2Add(
+                dir,
+                rlm.vector2Scale(camera_plane, camera_x),
+            );
+
+            var map_x: i32 = @intFromFloat(pos.x);
+            var map_y: i32 = @intFromFloat(pos.y);
 
             // Length of ray from current position to next x/y-side
-            var side_dist = rl.Vector2.init(0, 0);
+            var side_dist = rlm.vector2Zero();
 
             const delta_dist = rl.Vector2.init(
                 if (ray_dir.x == 0) 1e30 else @fabs(1 / ray_dir.x),
                 if (ray_dir.y == 0) 1e30 else @fabs(1 / ray_dir.y),
             );
 
-            var step_x: i32 = 0;
-            var step_y: i32 = 0;
+            var step_x: i32 = undefined;
+            var step_y: i32 = undefined;
 
             var hit: bool = false;
 
-            var side: i32 = 0;
+            var side: Side = undefined;
 
             if (ray_dir.x < 0) {
                 step_x = -1;
@@ -166,20 +249,20 @@ pub fn main() anyerror!void {
                 if (side_dist.x < side_dist.y) {
                     side_dist.x += delta_dist.x;
                     map_x += step_x;
-                    side = 0;
+                    side = .vertical;
                 } else {
                     side_dist.y += delta_dist.y;
                     map_y += step_y;
-                    side = 1;
+                    side = .horizontal;
                 }
 
                 hit = world_map[@intCast(map_x)][@intCast(map_y)] > 0;
             }
 
-            const perp_wall_dist: f32 = if (side == 0) (side_dist.x - delta_dist.x) else (side_dist.y - delta_dist.y);
+            const perp_wall_dist: f32 = if (side == .vertical) (side_dist.x - delta_dist.x) else (side_dist.y - delta_dist.y);
 
             const line_height: i32 = @intFromFloat(@divFloor(
-                @as(f32, @floatFromInt(screen_height)),
+                @as(f32, @floatFromInt(screen_height)) * 1.333333333, // Approximate ratio to acheive equal wall width/height
                 perp_wall_dist,
             ));
 
@@ -196,16 +279,16 @@ pub fn main() anyerror!void {
             // Texturing calculations
             const tex_num = world_map[@intCast(map_x)][@intCast(map_y)] - 1;
 
-            var wall_x: f32 = if (side == 0) pos.y + perp_wall_dist * ray_dir.y else pos.x + perp_wall_dist * ray_dir.x;
+            var wall_x: f32 = if (side == .vertical) pos.y + perp_wall_dist * ray_dir.y else pos.x + perp_wall_dist * ray_dir.x;
             wall_x -= @floor(wall_x);
 
             var tex_x: i32 = @intFromFloat(
                 wall_x * @as(f32, @floatFromInt(tex_width)),
             );
-            if (side == 0 and ray_dir.x > 0) {
+            if (side == .vertical and ray_dir.x > 0) {
                 tex_x = tex_width - tex_x - 1;
             }
-            if (side == 1 and ray_dir.y < 0) {
+            if (side == .horizontal and ray_dir.y < 0) {
                 tex_x = tex_width - tex_x - 1;
             }
 
@@ -224,7 +307,7 @@ pub fn main() anyerror!void {
                 const tex_y: i32 = @as(i32, @intFromFloat(tex_pos)) & (tex_height - 1);
                 tex_pos += step;
                 var color = texture[tex_num].getColor(tex_x, tex_y);
-                if (side == 1) {
+                if (side == .horizontal) {
                     color = color.brightness(-0.5);
                 }
                 rl.imageDrawPixel(@constCast(&buffer), @intCast(x), @intCast(y), color);
