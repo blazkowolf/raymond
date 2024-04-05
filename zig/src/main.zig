@@ -6,17 +6,15 @@ const tg = @import("./texgen.zig");
 const oom = @import("./misc.zig").oom;
 
 const window_width = 1600;
-// const window_width = 1280;
 const window_height = 900;
-// const window_height = 720;
-// const screen_width = 640;
 const screen_width = 320;
-// const screen_height = 360;
 const screen_height = 180;
 const tex_width = 64;
 const tex_height = 64;
 const map_width = 24;
 const map_height = 24;
+const num_sprites = 19;
+const mouse_x_sensitivity: comptime_float = 0.25;
 
 const world_map = [map_width][map_height]u32{
     [_]u32{ 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 4, 4, 6, 4, 4, 6, 4, 6, 4, 4, 4, 6, 4 },
@@ -45,6 +43,60 @@ const world_map = [map_width][map_height]u32{
     [_]u32{ 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 5 },
 };
 
+const Sprite = struct {
+    pos: rl.Vector2,
+    tex_id: i32,
+
+    fn init(pos: rl.Vector2, tex_id: i32) @This() {
+        return .{
+            .pos = pos,
+            .tex_id = tex_id,
+        };
+    }
+};
+
+const sprite = [num_sprites]Sprite{
+    // green light in front of player start position
+    Sprite.init(rl.Vector2.init(20.5, 11.5), 10),
+
+    // green lights in every room
+    Sprite.init(rl.Vector2.init(18.5, 4.5), 10),
+    Sprite.init(rl.Vector2.init(10.0, 4.5), 10),
+    Sprite.init(rl.Vector2.init(10.0, 12.5), 10),
+    Sprite.init(rl.Vector2.init(3.5, 6.5), 10),
+    Sprite.init(rl.Vector2.init(3.5, 20.5), 10),
+    Sprite.init(rl.Vector2.init(3.5, 14.5), 10),
+    Sprite.init(rl.Vector2.init(14.5, 20.5), 10),
+
+    // row of pillars in front of wall: fisheye test
+    Sprite.init(rl.Vector2.init(18.5, 10.5), 9),
+    Sprite.init(rl.Vector2.init(18.5, 11.5), 9),
+    Sprite.init(rl.Vector2.init(18.5, 12.5), 9),
+
+    // some barrels around the map
+    Sprite.init(rl.Vector2.init(21.5, 1.5), 8),
+    Sprite.init(rl.Vector2.init(15.5, 1.5), 8),
+    Sprite.init(rl.Vector2.init(16.0, 1.8), 8),
+    Sprite.init(rl.Vector2.init(16.2, 1.2), 8),
+    Sprite.init(rl.Vector2.init(3.5, 2.5), 8),
+    Sprite.init(rl.Vector2.init(9.5, 15.5), 8),
+    Sprite.init(rl.Vector2.init(10.0, 15.1), 8),
+    Sprite.init(rl.Vector2.init(10.5, 15.8), 8),
+};
+
+const CellTag = enum {
+    wall,
+    empty,
+};
+
+const Wall = struct {};
+const Empty = struct {};
+
+const Cell = union(CellTag) {
+    wall: Wall,
+    empty: Empty,
+};
+
 const Side = enum {
     horizontal, // North/South
     vertical, // East/West
@@ -60,8 +112,14 @@ pub fn main() anyerror!void {
     var dir = rl.Vector2.init(-1, 0); // Initial direction vector
     var camera_plane = rl.Vector2.init(0, 0.66); // 2D raycaster camera plane
 
+    rl.setConfigFlags(@enumFromInt(
+        @intFromEnum(rl.ConfigFlags.flag_msaa_4x_hint) |
+            @intFromEnum(rl.ConfigFlags.flag_vsync_hint),
+    ));
     rl.initWindow(window_width, window_height, "raymond");
     defer rl.closeWindow(); // Close window and OpenGL context
+
+    rl.disableCursor();
 
     rl.setWindowMonitor(rl.getCurrentMonitor());
 
@@ -76,7 +134,8 @@ pub fn main() anyerror!void {
     const screen_texture = rl.loadTextureFromImage(buffer);
     defer screen_texture.unload();
 
-    var texture = [8]rl.Image{
+    var texture = [11]rl.Image{
+        // Textures
         rl.loadImage("../pics/eagle.png"),
         rl.loadImage("../pics/redbrick.png"),
         rl.loadImage("../pics/purplestone.png"),
@@ -85,6 +144,10 @@ pub fn main() anyerror!void {
         rl.loadImage("../pics/mossy.png"),
         rl.loadImage("../pics/wood.png"),
         rl.loadImage("../pics/colorstone.png"),
+        // Sprites
+        rl.loadImage("../pics/barrel.png"),
+        rl.loadImage("../pics/pillar.png"),
+        rl.loadImage("../pics/greenlight.png"),
     };
 
     rl.setTargetFPS(60);
@@ -94,7 +157,14 @@ pub fn main() anyerror!void {
         const move_speed: f32 = delta_time * 5;
         const rot_speed: f32 = delta_time * 3;
 
-        if (rl.isKeyDown(rl.KeyboardKey.key_w)) {
+        const forward = rl.isKeyDown(.key_w) or rl.isKeyDown(.key_up);
+        const backward = rl.isKeyDown(.key_s) or rl.isKeyDown(.key_down);
+        const strafe_right = rl.isKeyDown(.key_d);
+        const strafe_left = rl.isKeyDown(.key_a);
+        const rotate_right = rl.isKeyDown(.key_right);
+        const rotate_left = rl.isKeyDown(.key_left);
+
+        if (forward) {
             if (world_map[@intFromFloat(pos.x + dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
                 pos.x += dir.x * move_speed;
             }
@@ -103,7 +173,16 @@ pub fn main() anyerror!void {
             }
         }
 
-        if (rl.isKeyDown(rl.KeyboardKey.key_s)) {
+        if (strafe_right) {
+            if (world_map[@intFromFloat(pos.x + camera_plane.x * move_speed)][@intFromFloat(pos.y)] == 0) {
+                pos.x += camera_plane.x * move_speed;
+            }
+            if (world_map[@intFromFloat(pos.x)][@intFromFloat(pos.y + camera_plane.y * move_speed)] == 0) {
+                pos.y += camera_plane.y * move_speed;
+            }
+        }
+
+        if (backward) {
             if (world_map[@intFromFloat(pos.x - dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
                 pos.x -= dir.x * move_speed;
             }
@@ -112,20 +191,38 @@ pub fn main() anyerror!void {
             }
         }
 
-        if (rl.isKeyDown(rl.KeyboardKey.key_d)) {
+        if (strafe_left) {
+            if (world_map[@intFromFloat(pos.x - camera_plane.x * move_speed)][@intFromFloat(pos.y)] == 0) {
+                pos.x -= camera_plane.x * move_speed;
+            }
+            if (world_map[@intFromFloat(pos.x)][@intFromFloat(pos.y - camera_plane.y * move_speed)] == 0) {
+                pos.y -= camera_plane.y * move_speed;
+            }
+        }
+
+        if (rotate_right) {
             dir = rlm.vector2Rotate(dir, -rot_speed);
             camera_plane = rlm.vector2Rotate(camera_plane, -rot_speed);
         }
 
-        if (rl.isKeyDown(rl.KeyboardKey.key_a)) {
+        if (rotate_left) {
             dir = rlm.vector2Rotate(dir, rot_speed);
             camera_plane = rlm.vector2Rotate(camera_plane, rot_speed);
+        }
+
+        // Mouse look
+        const mouse_delta = rl.getMouseDelta();
+        if (rlm.vector2Equals(mouse_delta, rlm.vector2Zero()) == 0) {
+            // Negate mouse delta to move in correct direction
+            const speed: f32 = -mouse_delta.x * delta_time * mouse_x_sensitivity;
+            dir = rlm.vector2Rotate(dir, speed);
+            camera_plane = rlm.vector2Rotate(camera_plane, speed);
         }
 
         rl.imageClearBackground(@constCast(&buffer), rl.Color.black);
 
         // Floor casting
-        for (0..screen_height) |y| {
+        for ((@divFloor(screen_height, 2) + 1)..screen_height) |y| {
             // Ray direction for leftmost ray (x = 0) and rightmost ray (x = w)
             const ray_dir_left = rlm.vector2Subtract(dir, camera_plane);
             const ray_dir_right = rlm.vector2Add(dir, camera_plane);
@@ -166,7 +263,6 @@ pub fn main() anyerror!void {
             );
 
             for (0..screen_width) |x| {
-                @setRuntimeSafety(false);
                 // The cell coordinate is simply gotten from the integer parts of floor.x and floor.y
                 const cell_x: i32 = @intFromFloat(floor.x);
                 const cell_y: i32 = @intFromFloat(floor.y);
@@ -302,7 +398,6 @@ pub fn main() anyerror!void {
 
             var tex_pos: f32 = (@as(f32, @floatFromInt(draw_start)) - @as(f32, @floatFromInt(@divFloor(screen_height, 2))) + @as(f32, @floatFromInt(@divFloor(line_height, 2)))) * step;
 
-            // rl.clearBackground(rl.Color.black);
             for (@intCast(draw_start)..@intCast(draw_end)) |y| {
                 const tex_y: i32 = @as(i32, @intFromFloat(tex_pos)) & (tex_height - 1);
                 tex_pos += step;
@@ -321,7 +416,6 @@ pub fn main() anyerror!void {
             defer rl.endDrawing();
 
             rl.clearBackground(rl.Color.black);
-            // rl.drawTexture(screen_texture, 0, 0, rl.Color.white);
             rl.drawTextureEx(
                 screen_texture,
                 rl.Vector2.init(0, 0),
@@ -329,7 +423,7 @@ pub fn main() anyerror!void {
                 window_width / screen_width,
                 rl.Color.white,
             );
-            rl.drawFPS(window_width - 100, 50);
+            rl.drawFPS(window_width - 100, 20);
         }
     }
 }
