@@ -2,7 +2,7 @@
 
 <div align="center">
   
-![image](https://github.com/blazkowolf/raymond/assets/9439488/7e7f9869-bd6e-45a0-9266-15a7cc5dde69)
+![image](https://github.com/blazkowolf/raymond/assets/9439488/72c0ca0f-70b1-416b-969c-16030f8b9ed4)
 
 </div>
 
