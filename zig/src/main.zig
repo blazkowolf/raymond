@@ -4,8 +4,10 @@ const rl = @import("raylib");
 const tg = @import("./texgen.zig");
 const oom = @import("./misc.zig").oom;
 
-const screen_width = 640;
-const screen_height = 480;
+const window_width = 1280;
+const window_height = 960;
+const screen_width = 320;
+const screen_height = 240;
 const tex_width = 64;
 const tex_height = 64;
 const map_width = 24;
@@ -48,7 +50,7 @@ pub fn main() anyerror!void {
     var dir = rl.Vector2.init(-1, 0); // Initial direction vector
     var camera_plane = rl.Vector2.init(0, 0.66); // 2D raycaster camera plane
 
-    rl.initWindow(screen_width, screen_height, "raymond");
+    rl.initWindow(window_width, window_height, "raymond");
     defer rl.closeWindow(); // Close window and OpenGL context
 
     const buffer = rl.Image{
@@ -116,15 +118,10 @@ pub fn main() anyerror!void {
             camera_plane.y = old_plane_x * @sin(rot_speed) + camera_plane.y * @cos(rot_speed);
         }
 
-        // Clear out buffer with zero values
-        for (0..screen_width) |x| for (0..screen_height) |y| rl.imageDrawPixel(
-            @constCast(&buffer),
-            @intCast(x),
-            @intCast(y),
-            rl.Color.black,
-        );
-
         for (0..screen_width) |x| {
+            // Clear out buffer with zero values
+            rl.imageDrawLine(@constCast(&buffer), @intCast(x), 0, @intCast(x), screen_height, rl.Color.black);
+
             const camera_x: f64 = 2 * @as(f64, @floatFromInt(x)) / @as(f64, @floatFromInt(screen_width)) - 1;
             const ray_dir = rl.Vector2.init(
                 dir.x + camera_plane.x * @as(f32, @floatCast(camera_x)),
@@ -241,8 +238,15 @@ pub fn main() anyerror!void {
             defer rl.endDrawing();
 
             rl.clearBackground(rl.Color.black);
-            rl.drawTexture(screen_texture, 0, 0, rl.Color.white);
-            rl.drawFPS(screen_width - 100, 50);
+            // rl.drawTexture(screen_texture, 0, 0, rl.Color.white);
+            rl.drawTextureEx(
+                screen_texture,
+                rl.Vector2.init(0, 0),
+                0,
+                window_width / screen_width,
+                rl.Color.white,
+            );
+            rl.drawFPS(window_width - 100, 50);
         }
     }
 }
