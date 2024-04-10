@@ -2,19 +2,20 @@ const std = @import("std");
 const rl = @import("raylib");
 const rlm = @import("raylib-math");
 
-const tg = @import("./texgen.zig");
+const glbl = @import("global.zig");
 const oom = @import("./misc.zig").oom;
+const tg = @import("./texgen.zig");
 
-const window_width = 1600;
-const window_height = 900;
-const screen_width = 320;
-const screen_height = 180;
-const tex_width = 64;
-const tex_height = 64;
-const map_width = 24;
-const map_height = 24;
-const num_sprites = 19;
-const mouse_x_sensitivity: comptime_float = 0.25;
+const window_width = glbl.window_width;
+const window_height = glbl.window_height;
+const screen_width = glbl.screen_width;
+const screen_height = glbl.screen_height;
+const tex_width = glbl.tex_width;
+const tex_height = glbl.tex_height;
+const map_width = glbl.map_width;
+const map_height = glbl.map_height;
+const num_sprites = glbl.num_sprites;
+const mouse_x_sensitivity = glbl.mouse_x_sensitivity;
 
 const world_map = [map_width][map_height]u32{
     [_]u32{ 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 4, 4, 6, 4, 4, 6, 4, 6, 4, 4, 4, 6, 4 },
@@ -84,30 +85,12 @@ const sprite = [num_sprites]Sprite{
     Sprite.init(rl.Vector2.init(10.5, 15.8), 8),
 };
 
-const CellTag = enum {
-    wall,
-    empty,
-};
-
-const Wall = struct {};
-const Empty = struct {};
-
-const Cell = union(CellTag) {
-    wall: Wall,
-    empty: Empty,
-};
-
 const Side = enum {
     horizontal, // North/South
     vertical, // East/West
 };
 
 pub fn main() anyerror!void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-
-    const allocator = arena.allocator();
-
     var pos = rl.Vector2.init(22, 11.5); // (X,Y) start position
     var dir = rl.Vector2.init(-1, 0); // Initial direction vector
     var camera_plane = rl.Vector2.init(0, 0.66); // 2D raycaster camera plane
@@ -123,13 +106,12 @@ pub fn main() anyerror!void {
 
     rl.setWindowMonitor(rl.getCurrentMonitor());
 
-    const buffer = rl.Image{
-        .data = @ptrCast(allocator.alloc(rl.Color, screen_width * screen_height) catch |err| oom(err)),
-        .width = @intCast(screen_width),
-        .height = @intCast(screen_height),
-        .format = .pixelformat_uncompressed_r8g8b8a8,
-        .mipmaps = 1,
-    }; // No need to free since using arena allocator
+    const buffer = rl.genImageColor(
+        @intCast(screen_width),
+        @intCast(screen_height),
+        rl.Color.black,
+    );
+    defer buffer.unload(); // We want this to stay alive
 
     const screen_texture = rl.loadTextureFromImage(buffer);
     defer screen_texture.unload();
