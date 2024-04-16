@@ -1,10 +1,10 @@
 .{
-    .name = "raylib-zig",
-    .version = "0.1.1",
+    .name = "raymond",
+    .version = "0.0.1",
     .dependencies = .{
-        .raylib = .{
-            .url = "https://github.com/raysan5/raylib/archive/5.0.tar.gz",
-            .hash = "1220c28847ca8e8756734ae84355802b764c9d9cf4de057dbc6fc2b15c56e726f27b",
+        .@"raylib-zig" = .{
+            .url = "https://github.com/Not-Nik/raylib-zig/archive/devel.tar.gz",
+            .hash = "1220079f289128a2f3a70e6ceb5945a61c161a0db7cddd77ed2edde8678127f1aafe",
         },
     },
     .paths = .{""},

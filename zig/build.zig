@@ -1,33 +1,47 @@
 const std = @import("std");
-const rl = @import("raylib-zig/build.zig");
+// const emcc = @import("emcc.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    var raylib = rl.getModule(b, "raylib-zig");
-    var raylib_math = rl.math.getModule(b, "raylib-zig");
+    const raylib_dep = b.dependency("raylib-zig", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const raylib = raylib_dep.module("raylib");
+    const raylib_math = raylib_dep.module("raylib-math");
+    const rlgl = raylib_dep.module("rlgl");
+    const raylib_artifact = raylib_dep.artifact("raylib");
 
     //web exports are completely separate
-    if (target.getOsTag() == .emscripten) {
-        const exe_lib = rl.compileForEmscripten(b, "raymond", "src/main.zig", target, optimize);
-        exe_lib.addModule("raylib", raylib);
-        exe_lib.addModule("raylib-math", raylib_math);
-
-        const raylib_artifact = rl.getRaylib(b, target, optimize);
-        // Note that raylib itself is not actually added to the exe_lib output file, so it also needs to be linked with emscripten.
-        exe_lib.linkLibrary(raylib_artifact);
-        const link_step = try rl.linkWithEmscripten(b, &[_]*std.Build.Step.Compile{ exe_lib, raylib_artifact });
-        b.getInstallStep().dependOn(&link_step.step);
-
-        const run_step = try rl.emscriptenRunStep(b);
-        run_step.step.dependOn(&link_step.step);
-
-        const run_option = b.step("run", "Run raymond");
-        run_option.dependOn(&run_step.step);
-
-        return;
-    }
+    // if (target.getOsTag() == .emscripten) {
+    //     const exe_lib = emcc.compileForEmscripten(
+    //         b,
+    //         "raymond",
+    //         "src/main.zig",
+    //         target,
+    //         optimize,
+    //     );
+    //
+    //     exe_lib.linkLibrary(raylib_artifact);
+    //     exe_lib.addModule("raylib", raylib);
+    //     exe_lib.addModule("raylib-math", raylib_math);
+    //
+    //     // Note that raylib itself is not actually added to the exe_lib output file, so it also needs to be linked with emscripten.
+    //     const link_step = try emcc.linkWithEmscripten(
+    //         b,
+    //         &[_]*std.Build.Step.Compile{ exe_lib, raylib_artifact },
+    //     );
+    //
+    //     b.getInstallStep().dependOn(&link_step.step);
+    //     const run_step = try emcc.emscriptenRunStep(b);
+    //     run_step.step.dependOn(&link_step.step);
+    //     const run_option = b.step("run", "Run raymond");
+    //     run_option.dependOn(&run_step.step);
+    //     return;
+    // }
 
     const exe = b.addExecutable(.{
         .name = "raymond",
@@ -36,9 +50,10 @@ pub fn build(b: *std.Build) !void {
         .target = target,
     });
 
-    rl.link(b, exe, target, optimize);
+    exe.linkLibrary(raylib_artifact);
     exe.addModule("raylib", raylib);
     exe.addModule("raylib-math", raylib_math);
+    exe.addModule("rlgl", rlgl);
 
     const run_cmd = b.addRunArtifact(exe);
     const run_step = b.step("run", "Run raymond");
@@ -50,9 +65,10 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    rl.link(b, unit_tests, target, optimize);
+    unit_tests.linkLibrary(raylib_artifact);
     unit_tests.addModule("raylib", raylib);
     unit_tests.addModule("raylib-math", raylib_math);
+    unit_tests.addModule("rlgl", rlgl);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
