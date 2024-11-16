@@ -1,21 +1,21 @@
 const std = @import("std");
-const rl = @import("raylib");
-const rlm = @import("raylib-math");
+const rl = @import("rl.zig");
 
-const glbl = @import("global.zig");
-const oom = @import("./misc.zig").oom;
-const tg = @import("./texgen.zig");
+const Raymond = @import("Raymond.zig");
+const g = @import("global.zig");
+const oom = @import("misc.zig").oom;
+const tg = @import("texgen.zig");
 
-const window_width = glbl.window_width;
-const window_height = glbl.window_height;
-const screen_width = glbl.screen_width;
-const screen_height = glbl.screen_height;
-const tex_width = glbl.tex_width;
-const tex_height = glbl.tex_height;
-const map_width = glbl.map_width;
-const map_height = glbl.map_height;
-const num_sprites = glbl.num_sprites;
-const mouse_x_sensitivity = glbl.mouse_x_sensitivity;
+const window_width = g.window_width;
+const window_height = g.window_height;
+const screen_width = g.screen_width;
+const screen_height = g.screen_height;
+const tex_width = g.tex_width;
+const tex_height = g.tex_height;
+const map_width = g.map_width;
+const map_height = g.map_height;
+const num_sprites = g.num_sprites;
+const mouse_x_sensitivity = g.mouse_x_sensitivity;
 
 const world_map = [map_width][map_height]u32{
     [_]u32{ 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 4, 4, 6, 4, 4, 6, 4, 6, 4, 4, 4, 6, 4 },
@@ -95,10 +95,10 @@ pub fn main() anyerror!void {
     var dir = rl.Vector2.init(-1, 0); // Initial direction vector
     var camera_plane = rl.Vector2.init(0, 0.66); // 2D raycaster camera plane
 
-    rl.setConfigFlags(@enumFromInt(
-        @intFromEnum(rl.ConfigFlags.flag_msaa_4x_hint) |
-            @intFromEnum(rl.ConfigFlags.flag_vsync_hint),
-    ));
+    rl.setConfigFlags(.{
+        .msaa_4x_hint = true,
+        .vsync_hint = true,
+    });
     rl.initWindow(window_width, window_height, "raymond");
     defer rl.closeWindow(); // Close window and OpenGL context
 
@@ -106,30 +106,30 @@ pub fn main() anyerror!void {
 
     rl.setWindowMonitor(rl.getCurrentMonitor());
 
-    const buffer = rl.genImageColor(
+    const buffer = rl.Image.genColor(
         @intCast(screen_width),
         @intCast(screen_height),
         rl.Color.black,
     );
     defer buffer.unload(); // We want this to stay alive
 
-    const screen_texture = rl.loadTextureFromImage(buffer);
+    const screen_texture = rl.Texture2D.fromImage(buffer);
     defer screen_texture.unload();
 
     var texture = [11]rl.Image{
         // Textures
-        rl.loadImage("../pics/eagle.png"),
-        rl.loadImage("../pics/redbrick.png"),
-        rl.loadImage("../pics/purplestone.png"),
-        rl.loadImage("../pics/greystone.png"),
-        rl.loadImage("../pics/bluestone.png"),
-        rl.loadImage("../pics/mossy.png"),
-        rl.loadImage("../pics/wood.png"),
-        rl.loadImage("../pics/colorstone.png"),
+        rl.Image.init("../pics/eagle.png"),
+        rl.Image.init("../pics/redbrick.png"),
+        rl.Image.init("../pics/purplestone.png"),
+        rl.Image.init("../pics/greystone.png"),
+        rl.Image.init("../pics/bluestone.png"),
+        rl.Image.init("../pics/mossy.png"),
+        rl.Image.init("../pics/wood.png"),
+        rl.Image.init("../pics/colorstone.png"),
         // Sprites
-        rl.loadImage("../pics/barrel.png"),
-        rl.loadImage("../pics/pillar.png"),
-        rl.loadImage("../pics/greenlight.png"),
+        rl.Image.init("../pics/barrel.png"),
+        rl.Image.init("../pics/pillar.png"),
+        rl.Image.init("../pics/greenlight.png"),
     };
 
     rl.setTargetFPS(60);
@@ -183,22 +183,22 @@ pub fn main() anyerror!void {
         }
 
         if (rotate_right) {
-            dir = rlm.vector2Rotate(dir, -rot_speed);
-            camera_plane = rlm.vector2Rotate(camera_plane, -rot_speed);
+            dir = dir.rotate(-rot_speed);
+            camera_plane = camera_plane.rotate(-rot_speed);
         }
 
         if (rotate_left) {
-            dir = rlm.vector2Rotate(dir, rot_speed);
-            camera_plane = rlm.vector2Rotate(camera_plane, rot_speed);
+            dir = dir.rotate(rot_speed);
+            camera_plane = camera_plane.rotate(rot_speed);
         }
 
         // Mouse look
         const mouse_delta = rl.getMouseDelta();
-        if (rlm.vector2Equals(mouse_delta, rlm.vector2Zero()) == 0) {
+        if (mouse_delta.equals(rl.Vector2.zero()) == 0) {
             // Negate mouse delta to move in correct direction
             const speed: f32 = -mouse_delta.x * delta_time * mouse_x_sensitivity;
-            dir = rlm.vector2Rotate(dir, speed);
-            camera_plane = rlm.vector2Rotate(camera_plane, speed);
+            dir = dir.rotate(speed);
+            camera_plane = camera_plane.rotate(speed);
         }
 
         rl.imageClearBackground(@constCast(&buffer), rl.Color.black);
@@ -206,8 +206,8 @@ pub fn main() anyerror!void {
         // Floor casting
         for ((@divFloor(screen_height, 2) + 1)..screen_height) |y| {
             // Ray direction for leftmost ray (x = 0) and rightmost ray (x = w)
-            const ray_dir_left = rlm.vector2Subtract(dir, camera_plane);
-            const ray_dir_right = rlm.vector2Add(dir, camera_plane);
+            const ray_dir_left = dir.subtract(camera_plane);
+            const ray_dir_right = dir.add(camera_plane);
 
             // Current y-position compared to the center of the screen (the horizon)
             const p: i32 = @as(i32, @intCast(y)) - @divFloor(screen_height, 2);
@@ -224,13 +224,9 @@ pub fn main() anyerror!void {
 
             // Calculate the real word step vector we have to add for each x (parallel to the camera plane).
             // Adding step-by-step avoids multiplications with a weight in the inner loop.
-            const ray_dir_delta = rlm.vector2Subtract(
-                ray_dir_right,
-                ray_dir_left,
-            );
+            const ray_dir_delta = ray_dir_right.subtract(ray_dir_left);
 
-            const floor_step = rlm.vector2Divide(
-                rlm.vector2Scale(ray_dir_delta, row_dist),
+            const floor_step = ray_dir_delta.scale(row_dist).divide(
                 rl.Vector2.init(
                     @floatFromInt(screen_width),
                     @floatFromInt(screen_width),
@@ -239,10 +235,7 @@ pub fn main() anyerror!void {
 
             // Real world coordinates of the leftmost column.
             // This will be updated as we step to the right.
-            var floor = rlm.vector2Add(
-                pos,
-                rlm.vector2Scale(ray_dir_left, row_dist),
-            );
+            var floor = pos.add(ray_dir_left.scale(row_dist));
 
             for (0..screen_width) |x| {
                 // The cell coordinate is simply gotten from the integer parts of floor.x and floor.y
@@ -253,7 +246,7 @@ pub fn main() anyerror!void {
                 const tx: i32 = @as(i32, @intFromFloat(@as(f32, @floatFromInt(tex_width)) * (floor.x - @as(f32, @floatFromInt(cell_x))))) & (tex_width - 1);
                 const ty: i32 = @as(i32, @intFromFloat(@as(f32, @floatFromInt(tex_height)) * (floor.y - @as(f32, @floatFromInt(cell_y))))) & (tex_height - 1);
 
-                floor = rlm.vector2Add(floor, floor_step);
+                floor = floor.add(floor_step);
 
                 // Choose texture and draw the pixel
                 const floor_tex_id: u32 = 3;
@@ -284,20 +277,17 @@ pub fn main() anyerror!void {
         // Wall casting
         for (0..screen_width) |x| {
             const camera_x: f32 = 2 * @as(f32, @floatFromInt(x)) / @as(f32, @floatFromInt(screen_width)) - 1;
-            const ray_dir = rlm.vector2Add(
-                dir,
-                rlm.vector2Scale(camera_plane, camera_x),
-            );
+            const ray_dir = dir.add(camera_plane.scale(camera_x));
 
             var map_x: i32 = @intFromFloat(pos.x);
             var map_y: i32 = @intFromFloat(pos.y);
 
             // Length of ray from current position to next x/y-side
-            var side_dist = rlm.vector2Zero();
+            var side_dist = rl.Vector2.zero();
 
             const delta_dist = rl.Vector2.init(
-                if (ray_dir.x == 0) 1e30 else @fabs(1 / ray_dir.x),
-                if (ray_dir.y == 0) 1e30 else @fabs(1 / ray_dir.y),
+                if (ray_dir.x == 0) 1e30 else @abs(1 / ray_dir.x),
+                if (ray_dir.y == 0) 1e30 else @abs(1 / ray_dir.y),
             );
 
             var step_x: i32 = undefined;
@@ -408,4 +398,8 @@ pub fn main() anyerror!void {
             rl.drawFPS(window_width - 100, 20);
         }
     }
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

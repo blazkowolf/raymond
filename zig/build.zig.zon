@@ -1,11 +1,19 @@
 .{
     .name = "raymond",
     .version = "0.0.1",
+    .minimum_zig_version = "0.13.0",
     .dependencies = .{
-        .@"raylib-zig" = .{
-            .url = "https://github.com/Not-Nik/raylib-zig/archive/devel.tar.gz",
-            .hash = "1220079f289128a2f3a70e6ceb5945a61c161a0db7cddd77ed2edde8678127f1aafe",
+        .raylib = .{
+            .url = "https://github.com/raysan5/raylib/archive/master.tar.gz",
+            .hash = "122003cd7f84cc614e4e8f20d92e127f0d3c0e83586517943f412ff1c80bd0052287",
         },
     },
-    .paths = .{""},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        // For example...
+        //"LICENSE",
+        //"README.md",
+    },
 }
