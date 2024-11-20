@@ -35,6 +35,10 @@ pub const Color = extern struct {
     pub fn init(r: u8, g: u8, b: u8, a: u8) Color {
         return Color{ .r = r, .g = g, .b = b, .a = a };
     }
+
+    pub fn brightness(self: Color, factor: f32) Color {
+        return ColorBrightness(self, factor);
+    }
 };
 
 pub const Vector2 = extern struct {
@@ -147,12 +151,24 @@ pub const Image = extern struct {
         return LoadImage(@ptrCast(file_name));
     }
 
+    pub fn genColor(width: i32, height: i32, color: Color) Image {
+        return GenImageColor(@intCast(width), @intCast(height), color);
+    }
+
     pub fn unload(self: Image) void {
         UnloadImage(self);
     }
 
-    pub fn genColor(width: i32, height: i32, color: Color) Image {
-        return GenImageColor(@intCast(width), @intCast(height), color);
+    pub fn clearBackground(self: *Image, color: Color) void {
+        ImageClearBackground(@ptrCast(self), color);
+    }
+
+    pub fn drawPixel(self: *Image, x: i32, y: i32, color: Color) void {
+        ImageDrawPixel(@ptrCast(self), @intCast(x), @intCast(y), color);
+    }
+
+    pub fn getColor(self: Image, x: i32, y: i32) Color {
+        return GetImageColor(self, @intCast(x), @intCast(y));
     }
 };
 
@@ -163,16 +179,143 @@ pub const Texture = extern struct {
     mipmaps: c_int,
     format: PixelFormat,
 
+    pub fn fromImage(image: Image) Texture {
+        return LoadTextureFromImage(image);
+    }
+
     pub fn unload(self: Texture) void {
         UnloadTexture(self);
     }
 
-    pub fn fromImage(image: Image) Texture {
-        return LoadTextureFromImage(image);
+    pub fn update(self: Texture, pixels: *const anyopaque) void {
+        UpdateTexture(self, pixels);
+    }
+
+    pub fn drawEx(
+        self: Texture, 
+        position: Vector2, 
+        rotation: f32, 
+        scale: f32, 
+        tint: Color,
+    ) void {
+        DrawTextureEx(self, position, rotation, scale, tint);
     }
 };
 
 pub const Texture2D = Texture;
+
+pub const KeyboardKey = enum(c_int) {
+    @"null" = 0,
+    apostrophe = 39,
+    comma = 44,
+    minus = 45,
+    period = 46,
+    slash = 47,
+    zero = 48,
+    one = 49,
+    two = 50,
+    three = 51,
+    four = 52,
+    five = 53,
+    six = 54,
+    seven = 55,
+    eight = 56,
+    nine = 57,
+    semicolon = 59,
+    equal = 61,
+    a = 65,
+    b = 66,
+    c = 67,
+    d = 68,
+    e = 69,
+    f = 70,
+    g = 71,
+    h = 72,
+    i = 73,
+    j = 74,
+    k = 75,
+    l = 76,
+    m = 77,
+    n = 78,
+    o = 79,
+    p = 80,
+    q = 81,
+    r = 82,
+    s = 83,
+    t = 84,
+    u = 85,
+    v = 86,
+    w = 87,
+    x = 88,
+    y = 89,
+    z = 90,
+    space = 32,
+    escape = 256,
+    enter = 257,
+    tab = 258,
+    backspace = 259,
+    insert = 260,
+    delete = 261,
+    right = 262,
+    left = 263,
+    down = 264,
+    up = 265,
+    page_up = 266,
+    page_down = 267,
+    home = 268,
+    end = 269,
+    caps_lock = 280,
+    scroll_lock = 281,
+    num_lock = 282,
+    print_screen = 283,
+    pause = 284,
+    f1 = 290,
+    f2 = 291,
+    f3 = 292,
+    f4 = 293,
+    f5 = 294,
+    f6 = 295,
+    f7 = 296,
+    f8 = 297,
+    f9 = 298,
+    f10 = 299,
+    f11 = 300,
+    f12 = 301,
+    left_shift = 340,
+    left_control = 341,
+    left_alt = 342,
+    left_super = 343,
+    right_shift = 344,
+    right_control = 345,
+    right_alt = 346,
+    right_super = 347,
+    kb_menu = 348,
+    left_bracket = 91,
+    backslash = 92,
+    right_bracket = 93,
+    grave = 96,
+    kp_0 = 320,
+    kp_1 = 321,
+    kp_2 = 322,
+    kp_3 = 323,
+    kp_4 = 324,
+    kp_5 = 325,
+    kp_6 = 326,
+    kp_7 = 327,
+    kp_8 = 328,
+    kp_9 = 329,
+    kp_decimal = 330,
+    kp_divide = 331,
+    kp_multiply = 332,
+    kp_subtract = 333,
+    kp_add = 334,
+    kp_enter = 335,
+    kp_equal = 336,
+    back = 4,
+    //menu = 82,
+    volume_up = 24,
+    volume_down = 25,
+};
 
 extern "c" fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 pub fn initWindow(width: usize, height: usize, title: []const u8) void {
@@ -234,11 +377,39 @@ pub fn drawText(text: []const u8, pos_x: i32, pos_y: i32, font_size: usize, colo
     DrawText(@ptrCast(text), @intCast(pos_x), @intCast(pos_y), @intCast(font_size), color);
 }
 
+extern "c" fn DrawFPS(posX: c_int, posY: c_int) void;
+pub fn drawFPS(x: i32, y: i32) void {
+    DrawFPS(@intCast(x), @intCast(y));
+}
+
+extern "c" fn GetFrameTime() f32;
+pub fn getFrameTime() f32 {
+    return GetFrameTime();
+}
+
+extern "c" fn IsKeyDown(key: KeyboardKey) bool;
+pub fn isKeyDown(key: KeyboardKey) bool {
+    return IsKeyDown(key);
+}
+
+extern "c" fn GetMouseDelta() Vector2;
+pub fn getMouseDelta() Vector2 {
+    return GetMouseDelta();
+}
+
+extern "c" fn ColorBrightness(color: Color, factor: f32) Color;
+
 extern "c" fn LoadImage(fileName: [*c]const u8) Image;
 extern "c" fn UnloadImage(image: Image) void;
+extern "c" fn ImageClearBackground(image: [*c]Image, color: Color) void;
+extern "c" fn ImageDrawPixel(image: [*c]Image, x: c_int, y: c_int, color: Color) void;
 extern "c" fn GenImageColor(width: c_int, height: c_int, color: Color) Image;
-extern "c" fn UnloadTexture(texture: Texture2D) void;
+extern "c" fn GetImageColor(image: Image, x: c_int, y: c_int) Color;
+
 extern "c" fn LoadTextureFromImage(image: Image) Texture2D;
+extern "c" fn UnloadTexture(texture: Texture2D) void;
+extern "c" fn UpdateTexture(texture: Texture2D, pixels: *const anyopaque) void;
+extern "c" fn DrawTextureEx(texture: Texture2D, position: Vector2, rotation: f32, scale: f32, tint: Color) void;
 
 extern "c" fn Vector2Zero() Vector2;
 extern "c" fn Vector2Add(v1: Vector2, v2: Vector2) Vector2;

@@ -106,7 +106,7 @@ pub fn main() anyerror!void {
 
     rl.setWindowMonitor(rl.getCurrentMonitor());
 
-    const buffer = rl.Image.genColor(
+    var buffer = rl.Image.genColor(
         @intCast(screen_width),
         @intCast(screen_height),
         rl.Color.black,
@@ -139,12 +139,12 @@ pub fn main() anyerror!void {
         const move_speed: f32 = delta_time * 5;
         const rot_speed: f32 = delta_time * 3;
 
-        const forward = rl.isKeyDown(.key_w) or rl.isKeyDown(.key_up);
-        const backward = rl.isKeyDown(.key_s) or rl.isKeyDown(.key_down);
-        const strafe_right = rl.isKeyDown(.key_d);
-        const strafe_left = rl.isKeyDown(.key_a);
-        const rotate_right = rl.isKeyDown(.key_right);
-        const rotate_left = rl.isKeyDown(.key_left);
+        const forward = rl.isKeyDown(.w) or rl.isKeyDown(.up);
+        const backward = rl.isKeyDown(.s) or rl.isKeyDown(.down);
+        const strafe_right = rl.isKeyDown(.d);
+        const strafe_left = rl.isKeyDown(.a);
+        const rotate_right = rl.isKeyDown(.right);
+        const rotate_left = rl.isKeyDown(.left);
 
         if (forward) {
             if (world_map[@intFromFloat(pos.x + dir.x * move_speed)][@intFromFloat(pos.y)] == 0) {
@@ -201,7 +201,7 @@ pub fn main() anyerror!void {
             camera_plane = camera_plane.rotate(speed);
         }
 
-        rl.imageClearBackground(@constCast(&buffer), rl.Color.black);
+        buffer.clearBackground(rl.Color.black);
 
         // Floor casting
         for ((@divFloor(screen_height, 2) + 1)..screen_height) |y| {
@@ -256,8 +256,7 @@ pub fn main() anyerror!void {
 
                 // Floor
                 color = texture[floor_tex_id].getColor(tx, ty).brightness(-0.5);
-                rl.imageDrawPixel(
-                    @constCast(&buffer),
+                buffer.drawPixel(
                     @intCast(x),
                     @intCast(y),
                     color,
@@ -265,8 +264,7 @@ pub fn main() anyerror!void {
 
                 // Ceiling (symmetrical, at screen_height - y - 1 instead of y)
                 color = texture[ceil_tex_id].getColor(tx, ty).brightness(-0.5);
-                rl.imageDrawPixel(
-                    @constCast(&buffer),
+                buffer.drawPixel(
                     @intCast(x),
                     @intCast(screen_height - y - 1),
                     color,
@@ -377,19 +375,18 @@ pub fn main() anyerror!void {
                 if (side == .horizontal) {
                     color = color.brightness(-0.5);
                 }
-                rl.imageDrawPixel(@constCast(&buffer), @intCast(x), @intCast(y), color);
+                buffer.drawPixel(@intCast(x), @intCast(y), color);
             }
         }
 
-        rl.updateTexture(screen_texture, buffer.data);
+        screen_texture.update(buffer.data);
 
         {
             rl.beginDrawing();
             defer rl.endDrawing();
 
             rl.clearBackground(rl.Color.black);
-            rl.drawTextureEx(
-                screen_texture,
+            screen_texture.drawEx(
                 rl.Vector2.init(0, 0),
                 0,
                 window_width / screen_width,
